@@ -63,4 +63,9 @@ if [ -n "$TARGET" ]; then
     rm -rf "$TMP_DIR"
 fi
 
+# Ensure Wi-Fi is unblocked
+if command -v rfkill >/dev/null 2>&1; then
+    rfkill unblock wifi 2>/dev/null || true
+fi
+
 echo "=== Balena WiFi Setup Ready ==="

@@ -279,7 +279,7 @@ def submit_credentials_to_balena(
         return True, f"Connected to '{ssid}' (simulated balena mode)."
 
     url = f"http://{portal_host}:{target_port}/connect"
-    payload = json.dumps({"ssid": ssid, "passphrase": password}).encode("utf-8")
+    payload = json.dumps({"ssid": ssid, "identity": "", "passphrase": password}).encode("utf-8")
     req = urllib.request.Request(
         url,
         data=payload,

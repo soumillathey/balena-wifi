@@ -18,13 +18,16 @@
     .networks-box { max-height: 180px; overflow-y: auto; background: #09090b; border: 1px solid #27272a; border-radius: 10px; margin-bottom: 16px; }
     .net-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #1f1f23; cursor: pointer; transition: background 0.15s; font-size: 0.85rem; }
     .net-item:hover { background: #18181b; }
+    .net-item.selected { background: #1e293b; border-color: #38bdf8; }
     .form-group { margin-bottom: 14px; }
     label { display: block; font-size: 0.78rem; font-weight: 600; color: #a1a1aa; margin-bottom: 6px; }
+    .input-wrap { position: relative; }
     input { width: 100%; padding: 11px 14px; background: #09090b; border: 1px solid #27272a; border-radius: 10px; color: #fafafa; font-size: 0.88rem; outline: none; }
     input:focus { border-color: #38bdf8; }
+    .eye-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #71717a; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
     .btn { width: 100%; padding: 12px; background: #38bdf8; color: #09090b; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; margin-top: 10px; }
     .btn:disabled { opacity: 0.5; }
-    .alert { padding: 12px; border-radius: 10px; font-size: 0.8rem; margin-top: 14px; display: none; }
+    .alert { padding: 12px; border-radius: 10px; font-size: 0.8rem; margin-top: 14px; display: none; line-height: 1.4; }
     .alert.info { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); display: block; }
     .alert.success { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); display: block; }
     .alert.error { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); display: block; }
@@ -63,7 +66,10 @@
         </div>
         <div class="form-group">
           <label for="passphrase">Passphrase</label>
-          <input type="password" id="passphrase" placeholder="••••••••" />
+          <div class="input-wrap">
+            <input type="password" id="passphrase" placeholder="••••••••" />
+            <button type="button" class="eye-btn" onclick="togglePass()">Show</button>
+          </div>
         </div>
         <button type="submit" id="submit-btn" class="btn">Connect</button>
       </form>
@@ -72,6 +78,18 @@
   </div>
 
   <script>
+    function togglePass() {
+      const p = document.getElementById('passphrase');
+      const btn = event.target;
+      if (p.type === 'password') {
+        p.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        p.type = 'password';
+        btn.textContent = 'Show';
+      }
+    }
+
     async function loadNetworks() {
       const box = document.getElementById('networks');
       try {
@@ -85,8 +103,11 @@
         list.forEach(net => {
           const div = document.createElement('div');
           div.className = 'net-item';
-          div.innerHTML = `<strong>${net.ssid}</strong><span style="color:#71717a">${net.signal || ''} dBm</span>`;
+          const signalText = typeof net.signal === 'number' ? `${net.signal} dBm` : '';
+          div.innerHTML = `<strong>${net.ssid}</strong><span style="color:#71717a">${signalText}</span>`;
           div.onclick = () => {
+            document.querySelectorAll('.net-item').forEach(el => el.classList.remove('selected'));
+            div.classList.add('selected');
             document.getElementById('ssid').value = net.ssid;
             document.getElementById('passphrase').focus();
           };
@@ -107,26 +128,36 @@
       btn.disabled = true;
       btn.textContent = 'Connecting...';
       alert.className = 'alert info';
-      alert.textContent = `Applying Wi-Fi configuration for '${ssid}'. Device will switch to client mode...`;
+      alert.textContent = `Submitting credentials for '${ssid}'. Device will switch to client mode...`;
 
       try {
+        // Balena wifi-connect requires ssid, identity, and passphrase
+        const payload = {
+          ssid: ssid,
+          identity: "",
+          passphrase: passphrase || ""
+        };
+
         const res = await fetch('/connect', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ssid, passphrase})
+          body: JSON.stringify(payload)
         });
+
         if (res.ok) {
           alert.className = 'alert success';
-          alert.textContent = `Connected to '${ssid}'! Reconnect your phone to your local Wi-Fi.`;
+          alert.innerHTML = `<strong>Credentials Accepted!</strong> The Pi is now connecting to <em>${ssid}</em>. Your phone will be disconnected from the 'hermes' setup network. Please reconnect your phone to <em>${ssid}</em>.`;
         } else {
+          const errText = await res.text().catch(() => '');
           alert.className = 'alert error';
-          alert.textContent = `Connection attempt failed. Please check password and retry.`;
+          alert.textContent = `Connection failed (${res.status}): ${errText || 'Please verify password and try again.'}`;
           btn.disabled = false;
           btn.textContent = 'Connect';
         }
       } catch (err) {
-        alert.className = 'alert info';
-        alert.textContent = `Configuration sent. Please reconnect your phone to '${ssid}'.`;
+        // Network switch may interrupt HTTP socket as connection succeeds
+        alert.className = 'alert success';
+        alert.innerHTML = `<strong>Configuration Sent!</strong> Pi is connecting to <em>${ssid}</em>. Please reconnect your phone to your home network.`;
       }
     }
 
