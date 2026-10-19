@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gluvok Hermes — Balena Captive Portal</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; }
+    body { background-color: #09090b; color: #fafafa; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 24px 16px; }
+    .container { width: 100%; max-width: 440px; }
+    .brand-box { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #27272a; }
+    .logo-box { width: 40px; height: 40px; border-radius: 12px; background: #18181b; border: 1px solid #27272a; display: flex; align-items: center; justify-content: center; }
+    .title { font-size: 1rem; font-weight: 800; color: #fff; }
+    .sub { font-size: 0.75rem; color: #71717a; }
+    .card { background: #121215; border: 1px solid #27272a; border-radius: 16px; padding: 22px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .card-desc { font-size: 0.75rem; color: #a1a1aa; margin-bottom: 18px; }
+    .networks-box { max-height: 180px; overflow-y: auto; background: #09090b; border: 1px solid #27272a; border-radius: 10px; margin-bottom: 16px; }
+    .net-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #1f1f23; cursor: pointer; transition: background 0.15s; font-size: 0.85rem; }
+    .net-item:hover { background: #18181b; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.78rem; font-weight: 600; color: #a1a1aa; margin-bottom: 6px; }
+    input { width: 100%; padding: 11px 14px; background: #09090b; border: 1px solid #27272a; border-radius: 10px; color: #fafafa; font-size: 0.88rem; outline: none; }
+    input:focus { border-color: #38bdf8; }
+    .btn { width: 100%; padding: 12px; background: #38bdf8; color: #09090b; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; margin-top: 10px; }
+    .btn:disabled { opacity: 0.5; }
+    .alert { padding: 12px; border-radius: 10px; font-size: 0.8rem; margin-top: 14px; display: none; }
+    .alert.info { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); display: block; }
+    .alert.success { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); display: block; }
+    .alert.error { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="brand-box">
+      <div class="logo-box">
+        <svg viewBox="0 0 200 200" fill="none" style="width:24px;height:24px">
+          <circle cx="100" cy="28" r="16" fill="#38bdf8"/>
+          <path d="M100 50 L100 70" stroke="#38bdf8" stroke-width="12" stroke-linecap="round"/>
+          <path d="M56 160 L100 60 L144 160" stroke="#38bdf8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M42 160 L100 40 L158 160" stroke="#38bdf8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="36" y="155" width="128" height="14" rx="7" fill="#38bdf8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="title">GLUVOK HERMES</div>
+        <div class="sub">Balena Captive Portal</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">Connect to Wi-Fi</h2>
+      <p class="card-desc">Select an available network or enter your facility credentials.</p>
+
+      <div id="networks" class="networks-box">
+        <div style="padding:12px;font-size:0.75rem;color:#71717a;text-align:center">Scanning networks...</div>
+      </div>
+
+      <form onsubmit="handleSubmit(event)">
+        <div class="form-group">
+          <label for="ssid">Network Name (SSID)</label>
+          <input type="text" id="ssid" placeholder="Network Name" required />
+        </div>
+        <div class="form-group">
+          <label for="passphrase">Passphrase</label>
+          <input type="password" id="passphrase" placeholder="••••••••" />
+        </div>
+        <button type="submit" id="submit-btn" class="btn">Connect</button>
+      </form>
+      <div id="status-alert" class="alert"></div>
+    </div>
+  </div>
+
+  <script>
+    async function loadNetworks() {
+      const box = document.getElementById('networks');
+      try {
+        const res = await fetch('/networks');
+        const list = await res.json();
+        if (!list || list.length === 0) {
+          box.innerHTML = '<div style="padding:12px;font-size:0.75rem;color:#71717a;text-align:center">No networks discovered</div>';
+          return;
+        }
+        box.innerHTML = '';
+        list.forEach(net => {
+          const div = document.createElement('div');
+          div.className = 'net-item';
+          div.innerHTML = `<strong>${net.ssid}</strong><span style="color:#71717a">${net.signal || ''} dBm</span>`;
+          div.onclick = () => {
+            document.getElementById('ssid').value = net.ssid;
+            document.getElementById('passphrase').focus();
+          };
+          box.appendChild(div);
+        });
+      } catch (e) {
+        box.innerHTML = '<div style="padding:12px;font-size:0.75rem;color:#71717a;text-align:center">Manual network entry available</div>';
+      }
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const ssid = document.getElementById('ssid').value.trim();
+      const passphrase = document.getElementById('passphrase').value;
+      const btn = document.getElementById('submit-btn');
+      const alert = document.getElementById('status-alert');
+
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+      alert.className = 'alert info';
+      alert.textContent = `Applying Wi-Fi configuration for '${ssid}'. Device will switch to client mode...`;
+
+      try {
+        const res = await fetch('/connect', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ssid, passphrase})
+        });
+        if (res.ok) {
+          alert.className = 'alert success';
+          alert.textContent = `Connected to '${ssid}'! Reconnect your phone to your local Wi-Fi.`;
+        } else {
+          alert.className = 'alert error';
+          alert.textContent = `Connection attempt failed. Please check password and retry.`;
+          btn.disabled = false;
+          btn.textContent = 'Connect';
+        }
+      } catch (err) {
+        alert.className = 'alert info';
+        alert.textContent = `Configuration sent. Please reconnect your phone to '${ssid}'.`;
+      }
+    }
+
+    loadNetworks();
+  </script>
+</body>
+</html>

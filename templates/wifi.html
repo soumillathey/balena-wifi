@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gluvok Hermes — Balena Wi-Fi Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; }
+    body { background-color: #09090b; color: #fafafa; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px 16px; -webkit-font-smoothing: antialiased; }
+    .header-bar { width: 100%; max-width: 480px; display: flex; align-items: center; justify-content: space-between; padding: 12px 0 20px; border-bottom: 1px solid #27272a; margin-bottom: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo-box { width: 40px; height: 40px; border-radius: 12px; background: #18181b; border: 1px solid #27272a; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    .brand-title { font-size: 0.95rem; font-weight: 800; letter-spacing: -0.02em; color: #fff; display: flex; align-items: center; gap: 6px; }
+    .brand-sub { font-size: 0.75rem; color: #71717a; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .badge-tag { font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+    .badge-balena { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+    .panel { width: 100%; max-width: 480px; background: #09090b; border: 1px solid #27272a; border-radius: 16px; padding: 24px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); transition: all 0.3s ease; }
+    .panel-locked { filter: blur(4px); opacity: 0.25; pointer-events: none; user-select: none; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid #27272a; margin-bottom: 20px; }
+    .panel-title-wrap { display: flex; align-items: center; gap: 12px; }
+    .icon-badge { width: 40px; height: 40px; border-radius: 10px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); display: flex; align-items: center; justify-content: center; }
+    .panel-title { font-size: 1rem; font-weight: 700; color: #fafafa; }
+    .panel-desc { font-size: 0.75rem; color: #71717a; margin-top: 2px; }
+    .status-badge { padding: 4px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; background: #27272a; color: #a1a1aa; border: 1px solid #3f3f46; letter-spacing: 0.04em; }
+    .status-badge.hotspot { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
+    .status-badge.online { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+    
+    /* Scanned Networks List */
+    .networks-section { margin-bottom: 18px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 0.78rem; font-weight: 600; color: #e4e4e7; }
+    .refresh-btn { background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .refresh-btn:hover { text-decoration: underline; }
+    .networks-list { max-height: 160px; overflow-y: auto; background: #121215; border: 1px solid #27272a; border-radius: 10px; margin-bottom: 12px; }
+    .network-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #1f1f23; cursor: pointer; transition: background 0.15s; }
+    .network-item:last-child { border-bottom: none; }
+    .network-item:hover { background: #1a1a20; }
+    .network-name { font-size: 0.85rem; font-weight: 600; color: #f4f4f5; display: flex; align-items: center; gap: 8px; }
+    .network-meta { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: #71717a; }
+    .signal-bar { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+    .bar { width: 3px; background: #3f3f46; border-radius: 1px; }
+    .bar.active { background: #38bdf8; }
+
+    /* Saved Networks */
+    .saved-section { padding-bottom: 16px; border-bottom: 1px solid #27272a; margin-bottom: 18px; }
+    .clear-btn { background: none; border: none; color: #71717a; font-size: 0.72rem; cursor: pointer; }
+    .clear-btn:hover { color: #ef4444; }
+    .chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { background: #18181b; border: 1px solid #27272a; border-radius: 999px; padding: 5px 12px; font-size: 0.75rem; color: #d4d4d8; cursor: pointer; transition: all 0.2s; }
+    .chip:hover { border-color: #38bdf8; color: #38bdf8; }
+    
+    /* Form */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.78rem; font-weight: 600; color: #a1a1aa; margin-bottom: 6px; }
+    .input-wrap { position: relative; }
+    input { width: 100%; padding: 11px 14px; background: #09090b; border: 1px solid #27272a; border-radius: 10px; color: #fafafa; font-size: 0.88rem; outline: none; transition: border-color 0.2s; }
+    input:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); }
+    .eye-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #71717a; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+    .vault-tag { font-size: 0.7rem; color: #34d399; font-weight: 600; }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-primary { flex: 1; padding: 12px; background: #38bdf8; color: #09090b; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { padding: 12px 16px; background: transparent; border: 1px solid #27272a; color: #a1a1aa; border-radius: 10px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-secondary:hover { border-color: #ef4444; color: #ef4444; }
+    .alert-box { padding: 12px 14px; border-radius: 10px; font-size: 0.8rem; line-height: 1.4; margin-top: 14px; display: none; }
+    .alert-box.info { background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; display: block; }
+    .alert-box.success { background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; }
+    .alert-box.error { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; display: block; }
+    
+    /* Security Modal */
+    .modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-card { width: 100%; max-width: 380px; background: #09090b; border: 1px solid #27272a; border-radius: 18px; padding: 28px 24px; box-shadow: 0 20px 45px rgba(0,0,0,0.9); text-align: center; }
+    .modal-logo { width: 48px; height: 48px; border-radius: 14px; background: #18181b; border: 1px solid #27272a; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; }
+    .modal-title { font-size: 1.05rem; font-weight: 800; color: #fafafa; margin-bottom: 4px; }
+    .modal-sub { font-size: 0.78rem; color: #71717a; margin-bottom: 22px; line-height: 1.4; }
+    .modal-card form { text-align: left; }
+    .modal-footer { margin-top: 20px; font-size: 0.72rem; color: #52525b; text-align: center; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Superadmin Security Modal -->
+  <div id="admin-login-overlay" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-logo">
+        <svg viewBox="0 0 200 200" fill="none" style="width:28px;height:28px">
+          <circle cx="100" cy="28" r="16" fill="#38bdf8"/>
+          <path d="M100 50 L100 70" stroke="#38bdf8" stroke-width="12" stroke-linecap="round"/>
+          <path d="M56 160 L100 60 L144 160" stroke="#38bdf8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M42 160 L100 40 L158 160" stroke="#38bdf8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="36" y="155" width="128" height="14" rx="7" fill="#38bdf8"/>
+        </svg>
+      </div>
+      <h3 class="modal-title">Wi-Fi Administration</h3>
+      <p class="modal-sub">Sign in with superadmin credentials to configure facility network</p>
+
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="admin-user">User ID</label>
+          <input type="text" id="admin-user" placeholder="superadmin" autocomplete="username" required value="superadmin" />
+        </div>
+        <div class="form-group">
+          <label for="admin-pass">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="admin-pass" placeholder="••••••••" autocomplete="current-password" required />
+            <button type="button" class="eye-btn" onclick="togglePass('admin-pass')">Show</button>
+          </div>
+        </div>
+        <div id="login-error" class="alert-box error" style="margin-bottom:14px;margin-top:0"></div>
+        <button type="submit" id="login-btn" class="btn-primary" style="width:100%">Sign In</button>
+      </form>
+      <div class="modal-footer">balena-io/wifi-connect engine • Cryptographic session token</div>
+    </div>
+  </div>
+
+  <!-- Header Branding -->
+  <div class="header-bar">
+    <div class="brand">
+      <div class="logo-box">
+        <svg viewBox="0 0 200 200" fill="none" style="width:24px;height:24px">
+          <circle cx="100" cy="28" r="16" fill="#38bdf8"/>
+          <path d="M100 50 L100 70" stroke="#38bdf8" stroke-width="12" stroke-linecap="round"/>
+          <path d="M56 160 L100 60 L144 160" stroke="#38bdf8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M42 160 L100 40 L158 160" stroke="#38bdf8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="36" y="155" width="128" height="14" rx="7" fill="#38bdf8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">GLUVOK <span class="badge-tag badge-balena">BALENA WIFI</span></div>
+        <div class="brand-sub">Hermes Edge Captive Portal</div>
+      </div>
+    </div>
+    <div id="auth-status-badge" class="badge-tag" style="background:#18181b;color:#71717a;border-color:#27272a;cursor:pointer" onclick="lockAdmin()">LOCKED</div>
+  </div>
+
+  <!-- Main Wi-Fi Configuration Panel -->
+  <div id="wifi-panel" class="panel panel-locked">
+    <div class="panel-header">
+      <div class="panel-title-wrap">
+        <div class="icon-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        </div>
+        <div>
+          <h2 class="panel-title">Wi-Fi Configuration</h2>
+          <p class="panel-desc">Powered by balena-io/wifi-connect captive portal</p>
+        </div>
+      </div>
+      <span id="status-pill" class="status-badge hotspot">CHECKING...</span>
+    </div>
+
+    <!-- Scanned Nearby Wi-Fi Networks Section -->
+    <div class="networks-section">
+      <div class="section-header">
+        <span>Available Wi-Fi Networks</span>
+        <button type="button" class="refresh-btn" onclick="loadNetworks()">Scan</button>
+      </div>
+      <div id="networks-list" class="networks-list">
+        <div style="padding:12px;font-size:0.75rem;color:#71717a;text-align:center">Scanning for networks...</div>
+      </div>
+    </div>
+
+    <!-- Known Saved Networks Vault -->
+    <div id="saved-section" class="saved-section hidden">
+      <div class="section-header">
+        <span>Known Saved Networks</span>
+        <button type="button" class="clear-btn" onclick="clearSaved()">Clear Saved</button>
+      </div>
+      <div id="saved-chips" class="chips-wrap"></div>
+    </div>
+
+    <!-- Wi-Fi Connect Form -->
+    <form onsubmit="connectWifi(event)">
+      <div class="form-group">
+        <label for="wifi-ssid">Network SSID</label>
+        <input type="text" id="wifi-ssid" placeholder="Select above or type SSID" required />
+      </div>
+      <div class="form-group">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label for="wifi-password" style="margin-bottom:0">Password</label>
+          <span id="vault-badge" class="vault-tag hidden">Saved in Vault</span>
+        </div>
+        <div class="input-wrap">
+          <input type="password" id="wifi-password" placeholder="••••••••" />
+          <button type="button" class="eye-btn" onclick="togglePass('wifi-password')">Show</button>
+        </div>
+      </div>
+      <div id="alert" class="alert-box"></div>
+      <div class="btn-row">
+        <button type="submit" id="submit-btn" class="btn-primary">Save & Connect</button>
+        <button type="button" class="btn-secondary" onclick="clearSaved()">Clear All</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    let authToken = sessionStorage.getItem('hermes_token') || '';
+
+    function checkAuth() {
+      if (authToken) {
+        unlockAdmin();
+      } else {
+        lockAdmin();
+      }
+    }
+
+    function unlockAdmin() {
+      document.getElementById('admin-login-overlay').classList.add('hidden');
+      document.getElementById('wifi-panel').classList.remove('panel-locked');
+      const badge = document.getElementById('auth-status-badge');
+      badge.textContent = 'UNLOCKED';
+      badge.style.color = '#34d399';
+      badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      badge.style.background = 'rgba(16, 185, 129, 0.12)';
+      loadStatus();
+      loadNetworks();
+    }
+
+    function lockAdmin() {
+      authToken = '';
+      sessionStorage.removeItem('hermes_token');
+      document.getElementById('admin-login-overlay').classList.remove('hidden');
+      document.getElementById('wifi-panel').classList.add('panel-locked');
+      const badge = document.getElementById('auth-status-badge');
+      badge.textContent = 'LOCKED';
+      badge.style.color = '#71717a';
+      badge.style.borderColor = '#27272a';
+      badge.style.background = '#18181b';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const user = document.getElementById('admin-user').value.trim();
+      const pwd = document.getElementById('admin-pass').value;
+      const err = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true;
+      btn.textContent = 'Authenticating...';
+      err.classList.add('hidden');
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({userid: user, password: pwd})
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.token) {
+          authToken = data.token;
+          sessionStorage.setItem('hermes_token', authToken);
+          unlockAdmin();
+        } else {
+          err.classList.remove('hidden');
+          err.textContent = data.error || 'Invalid credentials';
+        }
+      } catch (e) {
+        err.classList.remove('hidden');
+        err.textContent = 'Connection error: ' + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    }
+
+    function togglePass(id) {
+      const el = document.getElementById(id);
+      el.type = el.type === 'password' ? 'text' : 'password';
+    }
+
+    function getSignalBars(rssi) {
+      // rssi is negative dBm (e.g. -45 is strong, -80 is weak)
+      const bars = rssi > -55 ? 4 : rssi > -67 ? 3 : rssi > -78 ? 2 : 1;
+      let html = '<span class="signal-bar">';
+      for (let i = 1; i <= 4; i++) {
+        const h = 3 + i * 2.2;
+        const act = i <= bars ? 'active' : '';
+        html += `<span class="bar ${act}" style="height:${h}px"></span>`;
+      }
+      html += '</span>';
+      return html;
+    }
+
+    async function loadNetworks() {
+      const listEl = document.getElementById('networks-list');
+      listEl.innerHTML = '<div style="padding:10px;font-size:0.75rem;color:#71717a;text-align:center">Scanning for networks...</div>';
+      try {
+        const res = await fetch('/api/networks');
+        const data = await res.json();
+        const nets = data.networks || [];
+        if (nets.length === 0) {
+          listEl.innerHTML = '<div style="padding:10px;font-size:0.75rem;color:#71717a;text-align:center">No networks discovered</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        nets.forEach(net => {
+          const item = document.createElement('div');
+          item.className = 'network-item';
+          const signal = net.signal || -60;
+          const sec = net.security || 'WPA2';
+          item.innerHTML = `
+            <div class="network-name">
+              <span>${net.ssid}</span>
+            </div>
+            <div class="network-meta">
+              <span>${sec}</span>
+              ${getSignalBars(signal)}
+            </div>
+          `;
+          item.onclick = () => {
+            document.getElementById('wifi-ssid').value = net.ssid;
+            document.getElementById('wifi-password').focus();
+          };
+          listEl.appendChild(item);
+        });
+      } catch (e) {
+        listEl.innerHTML = '<div style="padding:10px;font-size:0.75rem;color:#ef4444;text-align:center">Failed to scan networks</div>';
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const pill = document.getElementById('status-pill');
+        if (data.connected) {
+          pill.textContent = 'ONLINE';
+          pill.className = 'status-badge online';
+        } else if (data.hotspot) {
+          pill.textContent = 'BALENA AP ACTIVE';
+          pill.className = 'status-badge hotspot';
+        }
+        if (data.saved && data.saved.length > 0) {
+          const container = document.getElementById('saved-chips');
+          container.innerHTML = '';
+          data.saved.forEach(net => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chip';
+            btn.textContent = net.ssid;
+            btn.onclick = () => {
+              document.getElementById('wifi-ssid').value = net.ssid;
+              document.getElementById('vault-badge').classList.remove('hidden');
+              document.getElementById('wifi-password').focus();
+            };
+            container.appendChild(btn);
+          });
+          document.getElementById('saved-section').classList.remove('hidden');
+        } else {
+          document.getElementById('saved-section').classList.add('hidden');
+        }
+      } catch (e) {}
+    }
+
+    async function connectWifi(e) {
+      e.preventDefault();
+      const ssid = document.getElementById('wifi-ssid').value.trim();
+      const password = document.getElementById('wifi-password').value;
+      const btn = document.getElementById('submit-btn');
+      const alert = document.getElementById('alert');
+      btn.disabled = true;
+      btn.textContent = `Connecting to ${ssid}...`;
+      alert.className = 'alert-box info';
+      alert.textContent = `Handing off credentials to balena-io/wifi-connect for '${ssid}'...`;
+      try {
+        const ctrl = new AbortController();
+        const timeout = setTimeout(() => ctrl.abort(), 65000);
+        const res = await fetch('/api/wifi', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Auth-Token': authToken},
+          body: JSON.stringify({ssid, password}),
+          signal: ctrl.signal
+        });
+        clearTimeout(timeout);
+        if (res.status === 401) {
+          lockAdmin();
+          return;
+        }
+        const data = await res.json();
+        if (data.success) {
+          alert.className = 'alert-box success';
+          alert.textContent = data.message || `Successfully connected to '${ssid}'!`;
+        } else {
+          alert.className = 'alert-box error';
+          alert.textContent = data.message || 'Connection failed.';
+        }
+      } catch (err) {
+        alert.className = 'alert-box info';
+        alert.textContent = `Connecting to '${ssid}'. If your phone was connected to the Pi hotspot, please reconnect your phone to '${ssid}'.`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save & Connect';
+        loadStatus();
+      }
+    }
+
+    async function clearSaved() {
+      if (!confirm('Clear all saved Wi-Fi networks from vault?')) return;
+      try {
+        const res = await fetch('/api/wifi/clear', {
+          method: 'POST',
+          headers: {'X-Auth-Token': authToken}
+        });
+        if (res.status === 401) {
+          lockAdmin();
+          return;
+        }
+        document.getElementById('wifi-ssid').value = '';
+        document.getElementById('wifi-password').value = '';
+        document.getElementById('vault-badge').classList.add('hidden');
+        loadStatus();
+      } catch (e) {}
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>
