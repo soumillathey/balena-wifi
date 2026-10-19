@@ -130,6 +130,14 @@ class BalenaProcessManager:
             self._gateway = gateway
 
             bin_path = find_wifi_connect_bin()
+            if not bin_path and getattr(os, "uname", lambda: None)() and getattr(os.uname(), "sysname", "") == "Linux":
+                try:
+                    from installer import install_wifi_connect
+                    installed = install_wifi_connect()
+                    bin_path = str(installed)
+                except Exception as e:
+                    logger.warning(f"Could not auto-download wifi-connect: {e}")
+
             if not bin_path:
                 logger.warning("[Simulation] wifi-connect binary not found. Running in simulation mode.")
                 _SIMULATION_STATE["portal_running"] = True

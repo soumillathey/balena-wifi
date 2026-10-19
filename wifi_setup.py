@@ -59,6 +59,18 @@ def main() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, shutdown)
 
+    # On Linux, if wifi-connect is missing, auto-install it
+    from balena_driver import is_balena_available
+    import platform
+    if not is_balena_available() and platform.system() == "Linux":
+        print("[Balena WiFi] wifi-connect binary not found on this Linux system.")
+        print("[Balena WiFi] Automatically downloading official balena-io/wifi-connect binary...")
+        try:
+            installed_path = install_wifi_connect()
+            print(f"[Balena WiFi] Installed: {installed_path}")
+        except Exception as e:
+            print(f"[Balena WiFi] Auto-download warning: {e}")
+
     setup_hotspot(
         port=args.port,
         portal_port=args.portal_port,

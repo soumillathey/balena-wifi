@@ -39,13 +39,13 @@ def test_constants():
 
 def test_target_triple_detection():
     with patch("platform.machine", return_value="aarch64"):
-        assert installer.get_target_triple() == "aarch64-unknown-linux-gnu"
+        assert installer.get_target_arch() == "linux-aarch64"
     with patch("platform.machine", return_value="x86_64"):
-        assert installer.get_target_triple() == "x86_64-unknown-linux-gnu"
+        assert installer.get_target_arch() == "linux-amd64"
     with patch("platform.machine", return_value="armv7l"):
-        assert installer.get_target_triple() == "armv7-unknown-linux-gnueabihf"
+        assert installer.get_target_arch() == "linux-armv7hf"
     with patch("platform.machine", return_value="unknown_cpu"):
-        assert installer.get_target_triple() is None
+        assert installer.get_target_arch() is None
 
 
 # --- 2. Vault Tests ---

@@ -4,23 +4,25 @@ set -e
 
 echo "=== Balena WiFi Installer ==="
 
-# Check Linux architecture
 ARCH="$(uname -m)"
 echo "Detected architecture: $ARCH"
 
 case "$ARCH" in
-    x86_64)
-        TRIPLE="x86_64-unknown-linux-gnu"
+    x86_64|amd64)
+        TARGET="linux-amd64"
         ;;
     aarch64|arm64)
-        TRIPLE="aarch64-unknown-linux-gnu"
+        TARGET="linux-aarch64"
         ;;
-    armv7l|armv7)
-        TRIPLE="armv7-unknown-linux-gnueabihf"
+    armv7l|armv7|armv8l|armhf)
+        TARGET="linux-armv7hf"
+        ;;
+    i386|i686)
+        TARGET="linux-i386"
         ;;
     *)
-        echo "Warning: Unrecognized architecture $ARCH. You may need to compile wifi-connect manually."
-        TRIPLE=""
+        echo "Warning: Unrecognized architecture $ARCH."
+        TARGET=""
         ;;
 esac
 
@@ -28,15 +30,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$SCRIPT_DIR/bin"
 mkdir -p "$BIN_DIR"
 
-if [ -n "$TRIPLE" ]; then
+if [ -n "$TARGET" ]; then
     VERSION="v4.11.1"
-    TAR_NAME="wifi-connect-$TRIPLE.tar.gz"
-    DOWNLOAD_URL="https://github.com/balena-os/wifi-connect/releases/download/$VERSION/$TAR_NAME"
+    ZIP_NAME="wifi-connect-$VERSION-$TARGET.zip"
+    DOWNLOAD_URL="https://github.com/balena-os/wifi-connect/releases/download/$VERSION/$ZIP_NAME"
 
     echo "Downloading balena wifi-connect ($VERSION) from GitHub..."
     TMP_DIR="$(mktemp -d)"
-    curl -sSL "$DOWNLOAD_URL" -o "$TMP_DIR/$TAR_NAME"
-    tar -xzf "$TMP_DIR/$TAR_NAME" -C "$TMP_DIR"
+    curl -sSL "$DOWNLOAD_URL" -o "$TMP_DIR/$ZIP_NAME"
+
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -q "$TMP_DIR/$ZIP_NAME" -d "$TMP_DIR"
+    else
+        python3 -c "import zipfile; zipfile.ZipFile('$TMP_DIR/$ZIP_NAME').extractall('$TMP_DIR')"
+    fi
     
     # Locate extracted binary
     EXTRACTED="$(find "$TMP_DIR" -type f -name wifi-connect | head -n 1)"
