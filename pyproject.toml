@@ -1,0 +1,21 @@
+[project]
+name = "balena-wifi"
+version = "0.1.0"
+description = "Robust Standalone Wi-Fi Setup & Captive Portal with balena-io/wifi-connect"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask>=3.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+wifi-setup = "wifi_setup:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
